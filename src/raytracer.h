@@ -14,13 +14,11 @@ inline __host__ __device__ float length_squared(float3 v)
     return v.x * v.x + v.y * v.y + v.z * v.z;
 }
 
-
 class Ray
 {
 public:
     __device__ Ray() {}
     __device__ Ray(const float3& a, const float3& b) { A = a; B = b; }
-
     __device__ float3 origin() const       { return A; }
     __device__ float3 direction() const    { return B; }
     __device__ float3 point_at_parameter(float t) const { return A + t*B; }
@@ -47,13 +45,22 @@ struct hit_record {
 class Camera
 {
 public:
-    __host__ __device__ Camera()
+    __host__ __device__ Camera(dim3 windowSize)
     {
+        calculate_camera(windowSize.x, windowSize.y);
+    }
+
+    __host__ __device__ void calculate_camera(uint imageW, uint imageH)
+    {
+        image_width = imageW;
+        image_height = static_cast<int>(image_width / aspect_ratio);
+
         // Default camera
-        lower_left_corner = make_float3(-2.0f, -1.0f, -1.0f);
-        horizontal = make_float3(4.0f, 0.0f, 0.0f);
-        vertical = make_float3(0.0f, 2.0f, 0.0f);
         origin = make_float3(0.0f, 0.0f, 0.0f);
+        horizontal = make_float3(viewport_width, 0.0f, 0.0f);
+        vertical = make_float3(0.0f, viewport_height, 0.0f);
+        //lower_left_corner = make_float3(-2.0f, -1.0f, -1.0f);
+        lower_left_corner = origin - horizontal/2.0f - vertical/2.0f - make_float3(0.0f, 0.0f, focal_length);
     }
 
     __device__ Ray get_ray(float u, float v)
@@ -61,6 +68,14 @@ public:
         //math!
         return Ray(origin, lower_left_corner + u*horizontal + v*vertical - origin);
     }
+
+    const float aspect_ratio = 16.0f / 9.0f;
+    int image_width;
+    int image_height;
+
+    float viewport_height = 2.0f;
+    float viewport_width = aspect_ratio * viewport_height;
+    float focal_length = 1.0f;
 
     float3 origin;
     float3 lower_left_corner;
@@ -116,10 +131,10 @@ public:
         return true;
     }
 
-private:
     float3 center;
     float radius;
 };
+
 
 class Hittable_list : public Hittable {
 public:
@@ -154,7 +169,6 @@ private:
     //std::vector<make_shared<>(Hittable)> objects;
     //std::vector<shared_ptr<Hittable>> objects;
 };
-
 
 #endif
 

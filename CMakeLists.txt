@@ -14,7 +14,7 @@ find_package(OpenGL REQUIRED)
 
 find_package(X11 REQUIRED)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y -Wall -Wextra -Wunused-function")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -std=c++1y -Wall -Wextra -Wunused-function")
 
 add_executable(raytracer src/raytracer.cpp src/cuda_trace.cu)
 
