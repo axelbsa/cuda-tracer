@@ -189,6 +189,8 @@ int x11_init_opengl_window(int imageW, int imageH)
         std::cout << "GLX version: " << majorGLX << "." << minorGLX << '\n';
     }
 
+#define glxChooseVisual 0
+#if glxChooseVisual
     // GLX, create XVisualInfo, this is the minimum visuals we want
     GLint glxAttribs[] = {
         GLX_RGBA,
@@ -202,9 +204,6 @@ int x11_init_opengl_window(int imageW, int imageH)
         GLX_SAMPLES,        0,
         None
     };
-
-#define glxChooseVisual 1
-#if glxChooseVisual
     visual = glXChooseVisual(display, screenId, glxAttribs);
 
     if (visual == 0) {
@@ -217,32 +216,57 @@ int x11_init_opengl_window(int imageW, int imageH)
     // To try to get a better combinations of GLXFBConfig (see glxinfo)
     static int visual_attribs[] =
     {
-        GLX_X_RENDERABLE    , True,
-        GLX_DRAWABLE_TYPE   , GLX_WINDOW_BIT,
         GLX_RENDER_TYPE     , GLX_RGBA_BIT,
         GLX_X_VISUAL_TYPE   , GLX_TRUE_COLOR,
+        GLX_DOUBLEBUFFER    , True,
         GLX_RED_SIZE        , 8,
         GLX_GREEN_SIZE      , 8,
         GLX_BLUE_SIZE       , 8,
         GLX_ALPHA_SIZE      , 8,
-        GLX_DEPTH_SIZE      , 24,
-        GLX_STENCIL_SIZE    , 8,
-        GLX_DOUBLEBUFFER    , True,
-        //GLX_SAMPLE_BUFFERS  , 1,
-        //GLX_SAMPLES         , 4,
+        GLX_SAMPLE_BUFFERS  , 1,
+        GLX_SAMPLES         , 4,
         None
     };
 
-    GLXFBConfig ret = 0;
-
     int fbcount = 0;
     GLXFBConfig *fbc = glXChooseFBConfig( display, screenId, visual_attribs, &fbcount );
-    if ( fbc )
-    {
-        if ( fbcount >= 1 )
-            ret = fbc[0];
+    if (fbc == 0) {
+        std::cout << "Failed to retrieve framebuffer.\n";
+        XCloseDisplay(display);
+        return 1;
     }
-    visual = glXGetVisualFromFBConfig( display, fbc[0] );
+
+    int best_fbc = -1, worst_fbc = -1, best_num_samp = -1, worst_num_samp = 999;
+    for (int i = 0; i < fbcount; ++i) {
+        XVisualInfo *vi = glXGetVisualFromFBConfig( display, fbc[i] );
+        if ( vi != 0) {
+            int samp_buf, samples, depth;
+            glXGetFBConfigAttrib( display, fbc[i], GLX_SAMPLE_BUFFERS      , &samp_buf );
+            glXGetFBConfigAttrib( display, fbc[i], GLX_SAMPLES             , &samples  );
+            glXGetFBConfigAttrib( display, fbc[i], GLX_DEPTH_SIZE          , &depth  );
+
+            std::cout << "VisualInfo: " << samp_buf << " : " << samples << " : " << depth << "\n";
+
+            if ( best_fbc < 0 || (samp_buf && samples > best_num_samp) ) {
+                best_fbc = i;
+                best_num_samp = samples;
+            }
+            if ( worst_fbc < 0 || !samp_buf || samples < worst_num_samp )
+                worst_fbc = i;
+            worst_num_samp = samples;
+        }
+        XFree( vi );
+    }
+
+    GLXFBConfig bestFbc = fbc[ best_fbc ];
+
+    visual = glXGetVisualFromFBConfig( display, bestFbc );
+    if (visual == 0) {
+        std::cout << "Could not create correct visual window. " << visual << "\n";
+        XCloseDisplay(display);
+        return 1;
+    }
+
     XFree( fbc );
 #endif
 
@@ -273,6 +297,8 @@ int x11_init_opengl_window(int imageW, int imageH)
     // Show the window
     XClearWindow(display, window);
     XMapRaised(display, window);
+
+    isGLVersionSupported(2,1);
 
     return 0;
 }
@@ -312,7 +338,6 @@ int main(int argc, char** argv) {
     {
         std::cerr << "[Error] Fatal error initializing X11 display \n";
     }
-
     findCudaDevice(argc, (const char **)argv);
 
     init_gl_buffers(windowSize);
@@ -341,7 +366,7 @@ int main(int argc, char** argv) {
         glOrtho(0.0, 1.0, 0.0, 1.0, 0.0, 1.0);
 
         // display results
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glClearColor(0.4, 0.1, 0.6, 1.0);  // Set some annoying colour that is neither white nor black
 
         // Setup buffer and call cuda
