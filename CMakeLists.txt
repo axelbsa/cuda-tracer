@@ -14,7 +14,7 @@ find_package(OpenGL REQUIRED)
 
 if (WIN32)
     set(CMAKE_C_STANDARD_LIBRARIES "opengl32.lib user32.lib gdi32.lib" CACHE STRING "C std libs")
-    add_executable(raytracer src/window.h src/raytracer.cpp src/cuda_trace.cu)
+    add_executable(raytracer WIN32 src/platform/window.h src/raytracer.cpp src/cuda_trace.cu)
     target_link_libraries(raytracer OpenGL::GL)
 endif (WIN32)
 
@@ -23,7 +23,7 @@ if (UNIX)
 
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -std=c++1y -Wall -Wextra -Wunused-function")
 
-    add_executable(raytracer src/window.h src/sys_gl.cpp src/sys_gl.h src/raytracer.cpp src/cuda_trace.cu)
+    add_executable(raytracer src/platform/window.h src/sys_gl.cpp src/sys_gl.h src/raytracer.cpp src/cuda_trace.cu)
 
     target_link_libraries(raytracer X11)
     target_link_libraries(raytracer OpenGL::GL)
