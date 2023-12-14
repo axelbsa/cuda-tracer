@@ -12,11 +12,20 @@ project(raytracer LANGUAGES CXX CUDA)
 set(OpenGL_GL_PREFERENCE "LEGACY")
 find_package(OpenGL REQUIRED)
 
-find_package(X11 REQUIRED)
+if (WIN32)
+    set(CMAKE_C_STANDARD_LIBRARIES "opengl32.lib user32.lib gdi32.lib" CACHE STRING "C std libs")
+    add_executable(raytracer src/window.h src/raytracer.cpp src/cuda_trace.cu)
+    target_link_libraries(raytracer OpenGL::GL)
+endif (WIN32)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -std=c++1y -Wall -Wextra -Wunused-function")
+if (UNIX)
+    find_package(X11 REQUIRED)
 
-add_executable(raytracer src/raytracer.cpp src/cuda_trace.cu)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -std=c++1y -Wall -Wextra -Wunused-function")
 
-target_link_libraries(raytracer X11)
-target_link_libraries(raytracer OpenGL::GL)
+    add_executable(raytracer src/window.h src/sys_gl.cpp src/sys_gl.h src/raytracer.cpp src/cuda_trace.cu)
+
+    target_link_libraries(raytracer X11)
+    target_link_libraries(raytracer OpenGL::GL)
+endif (UNIX)
+
